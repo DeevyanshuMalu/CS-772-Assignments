@@ -261,7 +261,7 @@ def main():
         fmt="d",
         xticklabels=list(tag_to_index.keys()),
         yticklabels=list(tag_to_index.keys()),
-     )
+    )
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
     plt.title("Confusion Matrix")
