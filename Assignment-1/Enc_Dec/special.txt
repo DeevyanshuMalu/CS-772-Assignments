@@ -1,0 +1,3 @@
+pack_padded_sequence
+remove rare words for unk training
+word.lower
