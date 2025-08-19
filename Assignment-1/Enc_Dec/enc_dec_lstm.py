@@ -9,10 +9,12 @@ class Encoder(nn.Module):
     def __init__(self, vocab_size, embed_dim, hidden_dim):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, embed_dim, padding_idx=0)
-        self.lstm = nn.LSTM(embed_dim, hidden_dim, batch_first=True)
+        self.lstm = nn.LSTM(embed_dim, hidden_dim, batch_first=True, num_layers=3)
+        self.dropout = nn.Dropout(0.5)
     
     def forward(self, input, lengths):
         embedded = self.embedding(input)
+        embedded = self.dropout(embedded)
         packed = pack_padded_sequence(embedded, lengths, batch_first=True, enforce_sorted=False)
         outputs, (hidden, cell) = self.lstm(packed)
         return hidden, cell
@@ -21,11 +23,13 @@ class Decoder(nn.Module):
     def __init__(self, tag_size, embed_dim, hidden_dim):
         super().__init__()
         self.embedding = nn.Embedding(tag_size, embed_dim, padding_idx=0)
-        self.lstm = nn.LSTM(embed_dim, hidden_dim, batch_first=True)
+        self.lstm = nn.LSTM(embed_dim, hidden_dim, batch_first=True, num_layers=3)
         self.fc = nn.Linear(hidden_dim, tag_size)
+        self.dropout = nn.Dropout(0.5)
 
     def forward(self, input, hidden, cell):
         embedded = self.embedding(input)
+        embedded = self.dropout(embedded)
         outputs, (hidden, cell) = self.lstm(embedded, (hidden, cell))
         predictions = self.fc(outputs)
         return predictions, hidden, cell
