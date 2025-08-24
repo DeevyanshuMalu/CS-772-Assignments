@@ -26,9 +26,9 @@ with open("HMM/data/tag_to_index.json") as f:
     tag_to_index = json.load(f)
 
 ### ------------------------------- Encoder-Decoder Model Setup ------------------------------- ###
-epochs = 25
-embed_dim = 64
-hidden_dim = 128
+epochs = 20
+embed_dim = 300
+hidden_dim = 256
 batch_size = 128
 device = torch.device("xpu" if torch.xpu.is_available() else "cpu")
 
@@ -39,12 +39,15 @@ with open("Enc_Dec/tokenizer/tag2idx.json") as f:
 with open("Enc_Dec/tokenizer/word2idx.json") as f:
     word2idx = json.load(f)
 
+with open("Enc_Dec/tokenizer/word_embeddings.pt", "rb") as f:
+    embedding_matrix = torch.load(f)
+
 tag_size = len(tag2idx)
 vocab_size = len(word2idx)
 
 if st.session_state.get("model_encdec") is None:
     model_encdec = Encoder_Decoder_Model(
-        vocab_size, embed_dim, hidden_dim, tag_size, tag2idx["<SOS>"]
+        vocab_size, embed_dim, hidden_dim, tag_size, tag2idx["<SOS>"], embedding_matrix
     ).to(device)
     lr = 0.001
     model_encdec.load_state_dict(
@@ -77,32 +80,14 @@ with open("LLM/upos_to_utag.json") as f:
 st.title("Part-of-Speech Tagging")
 
 model_type = st.selectbox(
-    "Choose your model for POS tagging", ("HMM", "Encoder-Decoder", "LLM")
+    "Choose your model for POS tagging",
+    ("HMM", "Encoder-Decoder (Greedy)", "Encoder-Decoder (Beam Search)", "LLM"),
 )
 
-# Example inputs
-inputs = [
-    "I want to eat french fries.",
-    "I have ten thousand candies and chocolates.",
-    "I told you to stop being a crybaby.",
-    "I want to run.",
-    "I want to go for a run.",
-    "Neel, Eshaan, Deeptanshu and Deevyanshu are in a team.",
-    "I am working to people remote areas.",
-    "We will go to our room and do masti.",
-]
-
 # Input text box
-st.write("Enter a sentence to get its POS tags:")
-input_text = st.text_input(placeholder="Type here...", label="Input sentence")
-
-st.write("Or choose from the following examples:")
-
-with st.container(border=True):
-    st.write("Examples:")
-    for example in inputs:
-        if st.button(example):
-            input_text = example
+input_text = st.text_input(
+    placeholder="Type here...", label="Enter a sentence to get its POS tags:"
+)
 
 # Button to trigger POS tagging
 if input_text:
@@ -113,7 +98,7 @@ if input_text:
             words, tag_given_tag, word_given_tag, total_given_tag, tag_to_index
         )
 
-    elif model_type == "Encoder-Decoder":
+    elif model_type == "Encoder-Decoder (Greedy)":
         print("Using Encoder-Decoder model for POS tagging")
         word_ids = torch.tensor(
             [word2idx.get(w, 1) for w in words], device=device
@@ -126,10 +111,27 @@ if input_text:
                 for i in range(len(output_tags))
             ][0][1:]
 
+    elif model_type == "Encoder-Decoder (Beam Search)":
+        print("Using Encoder-Decoder model with Beam Search for POS tagging")
+        word_ids = torch.tensor(
+            [word2idx.get(w, 1) for w in words], device=device
+        ).unsqueeze(0)
+        length = [word_ids.shape[1]]
+        with torch.no_grad():
+            output_tags = model_encdec.generate_beam_search(
+                word_ids, word_ids.shape[1], length
+            )
+            pos_tags = [
+                [idx2tag[idx.item()] for idx in output_tags[i]]
+                for i in range(len(output_tags))
+            ][0][1:]
+
     elif model_type == "LLM":
         print("Using LLM model for POS tagging")
         outputs = generator(" ".join(words))
-        pos_tags = [output["entity"] for output in outputs if not output["word"].endswith("@@")]
+        pos_tags = [
+            output["entity"] for output in outputs if not output["word"].endswith("@@")
+        ]
         pos_tags = [upos_to_utag[tag] for tag in pos_tags]
 
     st.divider()
