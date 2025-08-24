@@ -8,7 +8,12 @@ from typing import Optional, Tuple
 random.seed(42)
 torch.manual_seed(42)
 
-device = torch.device("xpu" if torch.xpu.is_available() else "cpu")
+if torch.cuda.is_available():
+	device = torch.device("cuda")
+elif torch.xpu.is_available():
+	device = torch.device("xpu")
+else:
+	device = torch.device("cpu")
 
 class MyLSTM(nn.Module):
     def __init__(self,
@@ -115,21 +120,21 @@ class MyLSTM(nn.Module):
                 else:
                     layer_in = layer_input
 
-                # gates: (seq_len, batch, 4*hidden)
-                gates = F.linear(layer_in, w_ih, b_ih) + F.linear(h_prev.unsqueeze(0).expand(seq_len, -1, -1), w_hh, b_hh)
-                i_gate, f_gate, g_gate, o_gate = gates.chunk(4, dim=2)
-                i_gate = torch.sigmoid(i_gate)
-                f_gate = torch.sigmoid(f_gate)
-                g_gate = torch.tanh(g_gate)
-                o_gate = torch.sigmoid(o_gate)
-
+                outputs_time = []
                 h_cur = h_prev
                 c_cur = c_prev
-                outputs_time = []
 
                 for t in range(seq_len):
-                    c_cur = f_gate[t] * c_cur + i_gate[t] * g_gate[t]
-                    h_cur = o_gate[t] * torch.tanh(c_cur)
+                    # Calculate gates for current time step using h_cur
+                    gate_input = F.linear(layer_in[t], w_ih, b_ih) + F.linear(h_cur, w_hh, b_hh)
+                    i_gate, f_gate, g_gate, o_gate = gate_input.chunk(4, dim=1)
+                    i_gate = torch.sigmoid(i_gate)
+                    f_gate = torch.sigmoid(f_gate)
+                    g_gate = torch.tanh(g_gate)
+                    o_gate = torch.sigmoid(o_gate)
+
+                    c_cur = f_gate * c_cur + i_gate * g_gate
+                    h_cur = o_gate * torch.tanh(c_cur)
                     outputs_time.append(h_cur.unsqueeze(0))
 
                 outputs_time = torch.cat(outputs_time, dim=0)
@@ -157,7 +162,7 @@ class MyLSTM(nn.Module):
 
         if self.batch_first:
             output = output.transpose(0, 1)
-        # print(output.shape, (h_n.shape, c_n.shape), len(final_h), len(final_c), final_h[0].shape, final_c[0].shape)
+        
         return output, (h_n, c_n)
 
 class Encoder(nn.Module):
@@ -202,10 +207,46 @@ class Encoder_Decoder_Model(nn.Module):
 
     def generate(self, input_seq, max_len, lengths):
         with torch.no_grad():
+            batch_size = input_seq.size(0)
             hidden, cell = self.encoder(input_seq, lengths)
-            input_tag = torch.tensor([[self.sos_index]]*len(input_seq), device=self.device)
+            # Start with SOS for each batch
+            sequences = [[self.sos_index] for _ in range(batch_size)]
             for _ in range(max_len):
-                output = self.decoder(input_tag, hidden, cell)
-                top1 = output[0].argmax(dim=-1)
-                input_tag = torch.cat([input_tag, top1[:, -1].unsqueeze(1)], dim=1)
-            return input_tag
+                input_tag = torch.tensor([[seq[-1]] for seq in sequences], device=self.device)
+                output, hidden, cell = self.decoder(input_tag, hidden, cell)
+                probs = F.log_softmax(output[:, -1, :], dim=-1)
+                top1 = probs.argmax(dim=-1)
+                for i in range(batch_size):
+                    sequences[i].append(top1[i].item())
+            # print(hidden[0, 0, :10], cell[0, 0, :10])
+            return torch.stack([torch.tensor(seq, device=self.device) for seq in sequences])
+        
+    def generate_beam_search(self, input_seq, max_len, lengths, width=5):
+        with torch.no_grad():
+            batch_size = input_seq.size(0)
+            hidden, cell = self.encoder(input_seq, lengths)
+            beams = [
+                [([self.sos_index], 0.0, hidden[:, i:i+1, :], cell[:, i:i+1, :])]
+                for i in range(batch_size)
+            ]
+            for _ in range(max_len):
+                new_beams = []
+                for b in range(batch_size):
+                    candidates = []
+                    for seq, score, h, c in beams[b]:
+                        # Only use last token as input
+                        input_tag = torch.tensor([[seq[-1]]], device=self.device)
+                        output, h_new, c_new = self.decoder(input_tag, h, c)
+                        probs = F.log_softmax(output[:, -1, :], dim=-1)
+                        topk_probs, topk_idx = probs.topk(width)
+                        for k in range(width):
+                            next_seq = seq + [topk_idx[0, k].item()]
+                            next_score = score + topk_probs[0, k].item()
+                            candidates.append((next_seq, next_score, h_new, c_new))
+                    # Keep top 'width' candidates
+                    candidates = sorted(candidates, key=lambda x: x[1], reverse=True)[:width]
+                    new_beams.append(candidates)
+                beams = new_beams
+            # Collect best sequences
+            best_seqs = [torch.tensor(beams[b][0][0], device=self.device) for b in range(batch_size)]
+            return torch.stack(best_seqs)
