@@ -91,7 +91,7 @@ input_text = st.text_input(
 
 # Button to trigger POS tagging
 if input_text:
-    words = word_tokenize(input_text)
+    words = [w.lower() for w in word_tokenize(input_text)]
     if model_type == "HMM":
         print("Using HMM model for POS tagging")
         pos_tags = get_POS_tags(
@@ -139,6 +139,6 @@ if input_text:
     # Display the result as a dictionary
     st.write("POS Tags for the input sentence with model:", model_type)
 
-    df = pd.DataFrame({"Word": words, "POS Tag": pos_tags})
+    df = pd.DataFrame({"Word": word_tokenize(input_text), "POS Tag": pos_tags})
     df.reset_index(drop=True, inplace=True)
     st.table(df)
