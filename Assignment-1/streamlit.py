@@ -26,7 +26,7 @@ with open("HMM/data/tag_to_index.json") as f:
     tag_to_index = json.load(f)
 
 ### ------------------------------- Encoder-Decoder Model Setup ------------------------------- ###
-epochs = 20
+epochs = 10
 embed_dim = 300
 hidden_dim = 256
 batch_size = 128
@@ -81,7 +81,8 @@ st.title("Part-of-Speech Tagging")
 
 model_type = st.selectbox(
     "Choose your model for POS tagging",
-    ("HMM", "Encoder-Decoder (Greedy)", "Encoder-Decoder (Beam Search)", "LLM"),
+    # ("HMM", "Encoder-Decoder (Greedy)", "Encoder-Decoder (Beam Search)", "LLM"),
+    ("HMM", "Encoder-Decoder (Greedy)", "LLM"),
 )
 
 # Input text box
@@ -111,20 +112,20 @@ if input_text:
                 for i in range(len(output_tags))
             ][0][1:]
 
-    elif model_type == "Encoder-Decoder (Beam Search)":
-        print("Using Encoder-Decoder model with Beam Search for POS tagging")
-        word_ids = torch.tensor(
-            [word2idx.get(w, 1) for w in words], device=device
-        ).unsqueeze(0)
-        length = [word_ids.shape[1]]
-        with torch.no_grad():
-            output_tags = model_encdec.generate_beam_search(
-                word_ids, word_ids.shape[1], length
-            )
-            pos_tags = [
-                [idx2tag[idx.item()] for idx in output_tags[i]]
-                for i in range(len(output_tags))
-            ][0][1:]
+    # elif model_type == "Encoder-Decoder (Beam Search)":
+    #     print("Using Encoder-Decoder model with Beam Search for POS tagging")
+    #     word_ids = torch.tensor(
+    #         [word2idx.get(w, 1) for w in words], device=device
+    #     ).unsqueeze(0)
+    #     length = [word_ids.shape[1]]
+    #     with torch.no_grad():
+    #         output_tags = model_encdec.generate_beam_search(
+    #             word_ids, word_ids.shape[1], length
+    #         )
+    #         pos_tags = [
+    #             [idx2tag[idx.item()] for idx in output_tags[i]]
+    #             for i in range(len(output_tags))
+    #         ][0][1:]
 
     elif model_type == "LLM":
         print("Using LLM model for POS tagging")

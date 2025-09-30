@@ -1,7 +1,6 @@
 from torch import nn
 import torch
 import random
-from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from torch.nn import functional as F
 from typing import Optional, Tuple
 
@@ -164,118 +163,27 @@ class MyLSTM(nn.Module):
             output = output.transpose(0, 1)
         
         return output, (h_n, c_n)
-
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-######## RECODE WITH ENCODER AS LSTM AND DECODER AS LINEAR + SOFTMAX ########
-class Encoder(nn.Module):
-    def __init__(self, vocab_size, embed_dim, hidden_dim, embedding_matrix):
+    
+class Encoder_Decoder_Model(nn.Module):
+    def __init__(self, vocab_size, embed_dim, hidden_dim, tag_size, embedding_matrix):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, embed_dim, padding_idx=0)
         self.embedding.weight.data.copy_(embedding_matrix)
         self.embedding.weight.requires_grad = False  # Freeze embeddings
-        self.lstm = MyLSTM(embed_dim, hidden_dim, batch_first=True, num_layers=3)
-    
-    def forward(self, input, lengths):
-        embedded = self.embedding(input)
-        outputs, (hidden, cell) = self.lstm(embedded)
-        return hidden, cell
-
-class Decoder(nn.Module):
-    def __init__(self, tag_size, embed_dim, hidden_dim):
-        super().__init__()
-        self.embedding = nn.Embedding(tag_size, embed_dim, padding_idx=0)
-        self.lstm = MyLSTM(embed_dim, hidden_dim, batch_first=True, num_layers=3)
-        self.fc = nn.Linear(hidden_dim, tag_size)
-
-    def forward(self, input, hidden, cell):
-        embedded = self.embedding(input)
-        outputs, (hidden, cell) = self.lstm(embedded, (hidden, cell))
-        predictions = self.fc(outputs)
-        return predictions, hidden, cell
-    
-class Encoder_Decoder_Model(nn.Module):
-    def __init__(self, vocab_size, embed_dim, hidden_dim, tag_size, sos_index, embedding_matrix):
-        super().__init__()
-        self.encoder = Encoder(vocab_size, embed_dim, hidden_dim, embedding_matrix)
-        self.decoder = Decoder(tag_size, embed_dim, hidden_dim)
-        self.sos_index = sos_index
+        self.encoder = MyLSTM(embed_dim, hidden_dim, batch_first=True)
+        self.decoder = nn.Linear(hidden_dim, tag_size)
         self.device = device
 
-    def forward(self, input_seq, input_tags, input_lengths):
-        hidden, cell = self.encoder(input_seq, input_lengths)
-        input_tags = torch.cat([torch.tensor([[self.sos_index]]*len(input_seq), device=self.device), input_tags[:, :-1]], dim=1)
-        output, hidden, cell = self.decoder(input_tags, hidden, cell)
-        return output, hidden, cell
+    def forward(self, input_seq):
+        embeddings = self.embedding(input_seq)
+        outputs_encoder, _ = self.encoder(embeddings)
+        outputs_decoder = self.decoder(outputs_encoder)
+        return outputs_decoder
 
-    def generate(self, input_seq, max_len, lengths):
+    def generate(self, input_seq):
         with torch.no_grad():
-            batch_size = input_seq.size(0)
-            hidden, cell = self.encoder(input_seq, lengths)
-            # Start with SOS for each batch
-            sequences = [[self.sos_index] for _ in range(batch_size)]
-            for _ in range(max_len):
-                input_tag = torch.tensor([[seq[-1]] for seq in sequences], device=self.device)
-                output, hidden, cell = self.decoder(input_tag, hidden, cell)
-                probs = F.log_softmax(output[:, -1, :], dim=-1)
-                top1 = probs.argmax(dim=-1)
-                for i in range(batch_size):
-                    sequences[i].append(top1[i].item())
-            # print(hidden[0, 0, :10], cell[0, 0, :10])
-            return torch.stack([torch.tensor(seq, device=self.device) for seq in sequences])
-        
-    def generate_beam_search(self, input_seq, max_len, lengths, width=5):
-        with torch.no_grad():
-            batch_size = input_seq.size(0)
-            hidden, cell = self.encoder(input_seq, lengths)
-            beams = [
-                [([self.sos_index], 0.0, hidden[:, i:i+1, :], cell[:, i:i+1, :])]
-                for i in range(batch_size)
-            ]
-            for _ in range(max_len):
-                new_beams = []
-                for b in range(batch_size):
-                    candidates = []
-                    for seq, score, h, c in beams[b]:
-                        # Only use last token as input
-                        input_tag = torch.tensor([[seq[-1]]], device=self.device)
-                        output, h_new, c_new = self.decoder(input_tag, h, c)
-                        probs = F.log_softmax(output[:, -1, :], dim=-1)
-                        topk_probs, topk_idx = probs.topk(width)
-                        for k in range(width):
-                            next_seq = seq + [topk_idx[0, k].item()]
-                            next_score = score + topk_probs[0, k].item()
-                            candidates.append((next_seq, next_score, h_new, c_new))
-                    # Keep top 'width' candidates
-                    candidates = sorted(candidates, key=lambda x: x[1], reverse=True)[:width]
-                    new_beams.append(candidates)
-                beams = new_beams
-            # Collect best sequences
-            best_seqs = [torch.tensor(beams[b][0][0], device=self.device) for b in range(batch_size)]
-            return torch.stack(best_seqs)
+            embeddings = self.embedding(input_seq)
+            outputs_encoder, _ = self.encoder(embeddings)
+            outputs_decoder = self.decoder(outputs_encoder)
+            tag_ids = outputs_decoder.argmax(dim=-1)
+            return tag_ids
