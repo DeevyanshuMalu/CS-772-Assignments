@@ -1,0 +1,4 @@
+Greedy Decoding Accuracy: 0.3396
+Beam Search Decoding Accuracy: 0.4229
+Greedy Decoding F1 Score: 0.8561
+Beam Search Decoding F1 Score: 0.8770
