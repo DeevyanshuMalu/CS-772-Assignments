@@ -91,7 +91,7 @@ st.title("Part-of-Speech Tagging")
 model_type = st.selectbox(
     "Choose your model for POS tagging",
     # ("HMM", "Encoder-Decoder (Greedy)", "Encoder-Decoder (Beam Search)", "LLM"),
-    ("HMM", "Encoder-Decoder (Greedy)", "LLM"),
+    ("HMM", "Encoder-Decoder", "LLM"),
 )
 
 # Input text box
@@ -108,7 +108,7 @@ if input_text:
             words, tag_given_tag, word_given_tag, total_given_tag, tag_to_index
         )
 
-    elif model_type == "Encoder-Decoder (Greedy)":
+    elif model_type == "Encoder-Decoder":
         print("Using Encoder-Decoder model for POS tagging")
         word_ids = torch.tensor(
             [word2idx.get(w, 1) for w in words], device=device
