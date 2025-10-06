@@ -30,8 +30,12 @@ epochs = 10
 embed_dim = 300
 hidden_dim = 256
 batch_size = 128
-device = torch.device("xpu" if torch.xpu.is_available() else "cpu")
-
+if torch.cuda.is_available():
+	device = torch.device("cuda")
+elif torch.xpu.is_available():
+	device = torch.device("xpu")
+else:
+	device = torch.device("cpu")
 with open("Enc_Dec/tokenizer/tag2idx.json") as f:
     tag2idx = json.load(f)
     idx2tag = {v: k for k, v in tag2idx.items()}
@@ -47,7 +51,7 @@ vocab_size = len(word2idx)
 
 if st.session_state.get("model_encdec") is None:
     model_encdec = Encoder_Decoder_Model(
-        vocab_size, embed_dim, hidden_dim, tag_size, tag2idx["<SOS>"], embedding_matrix
+        vocab_size, embed_dim, hidden_dim, tag_size, embedding_matrix
     ).to(device)
     lr = 0.001
     model_encdec.load_state_dict(
@@ -61,7 +65,12 @@ else:
     model_encdec = st.session_state.model_encdec
 
 ### ------------------------------- LLM Setup ------------------------------- ###
-device = torch.device("xpu" if torch.xpu.is_available() else "cpu")
+if torch.cuda.is_available():
+	device = torch.device("cuda")
+elif torch.xpu.is_available():
+	device = torch.device("xpu")
+else:
+	device = torch.device("cpu")
 if st.session_state.get("model_llm") is None:
     name = "TweebankNLP/bertweet-tb2_ewt-pos-tagging"
     tokenizer = AutoTokenizer.from_pretrained(name)
@@ -106,11 +115,11 @@ if input_text:
         ).unsqueeze(0)
         length = [word_ids.shape[1]]
         with torch.no_grad():
-            output_tags = model_encdec.generate(word_ids, word_ids.shape[1], length)
+            output_tags = model_encdec.generate(word_ids)
             pos_tags = [
                 [idx2tag[idx.item()] for idx in output_tags[i]]
                 for i in range(len(output_tags))
-            ][0][1:]
+            ][0]
 
     # elif model_type == "Encoder-Decoder (Beam Search)":
     #     print("Using Encoder-Decoder model with Beam Search for POS tagging")
