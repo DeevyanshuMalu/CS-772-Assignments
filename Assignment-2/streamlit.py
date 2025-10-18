@@ -51,6 +51,7 @@ if st.session_state.get("model_lstm") is None:
     st.session_state.model_lstm = lstm_model
 else:
     lstm_model = st.session_state.model_lstm
+print("LSTM model loaded")
 
 ### ------------------------------- Transformer Model Setup ------------------------------- ###
 lr = 1e-4
@@ -97,6 +98,7 @@ if st.session_state.get("model_transformers") is None:
     st.session_state.model_transformers = transformer_model
 else:
     transformer_model = st.session_state.model_transformers
+print("Transformer model loaded")
 
 ### ------------------------------- LLM Setup ------------------------------- ###
 if st.session_state.get("model_llm") is None:
@@ -110,6 +112,7 @@ if st.session_state.get("model_llm") is None:
     st.session_state.model_llm = pipe
 else:
     pipe = st.session_state.model_llm
+print("LLM model loaded")
 
 # Title for the app
 st.title("English to Hindi Transliteration")

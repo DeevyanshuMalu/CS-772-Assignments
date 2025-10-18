@@ -16,5 +16,5 @@ acc = compute_accuracy(actuals, preds)
 f1 = get_f1_score(actuals, preds)
 
 with open("rule_based_results.txt", "w") as f:
-    print(f"Rule-Based Transliteration Accuracy: {acc*100:.2f}%", file=f)
-    print(f"Rule-Based Transliteration F1 Score: {f1*100:.2f}%", file=f)
+    print(f"Rule-Based Transliteration Accuracy: {acc:.4f}", file=f)
+    print(f"Rule-Based Transliteration F1 Score: {f1:.4f}", file=f)

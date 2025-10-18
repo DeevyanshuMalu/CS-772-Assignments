@@ -1,2 +1,2 @@
-Rule-Based Transliteration Accuracy: 7.40%
-Rule-Based Transliteration F1 Score: 66.34%
+Rule-Based Transliteration Accuracy: 0.0740
+Rule-Based Transliteration F1 Score: 0.6634
