@@ -125,8 +125,8 @@ model_type = st.selectbox(
 )
 
 if model_type == "LLM":
-    temperature = st.slider("Temperature", 0.0, 2.0, 1.0, 0.1)
-    top_p = st.slider("Top-p (nucleus sampling)", 0.0, 1.0, 1.0, 0.05)
+    temperature = st.slider("Temperature", 0.0, 2.0, 0.1, 0.1)
+    top_p = st.slider("Top-p (nucleus sampling)", 0.0, 1.0, 0.75, 0.05)
 
 # Input text box
 input_text = st.text_input(
