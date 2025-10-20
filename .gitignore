@@ -211,3 +211,6 @@ __marimo__/
 glove.2024.wikigiga.300d.txt
 wandb/
 *.jsonl
+models/
+logs/
+paradetox_dataset/
