@@ -33,6 +33,7 @@ def parse_args():
         default=64,
         help="Number of unmask steps to perform during prediction",
     )
+    parser.add_argument("--cfg_scale", type=float, default=1.0, help="Guidance scale")
     parser.add_argument(
         "--checkpoint_num",
         type=int,
@@ -47,6 +48,7 @@ def test(args):
     batch_size = args.batch_size
     lr = args.lr
     num_unmask_steps = args.num_unmask_steps
+    cfg_scale = args.cfg_scale
 
     model = AutoModel.from_pretrained(
         "GSAI-ML/LLaDA-8B-Base",
@@ -118,7 +120,7 @@ def test(args):
 
     ds_preprocessed = ds["test"].map(preprocess, num_proc=1)
 
-    def predict(input_ids, attention_mask, num_steps):
+    def predict(input_ids, attention_mask, num_steps, prompt_length):
         output_ids = input_ids.clone()
         num_masks = output_ids[output_ids == mask_id].numel()
         # print(f"Number of masks in the input: {num_masks}")
@@ -132,11 +134,27 @@ def test(args):
         for unmask_num in tqdm(unmask_per_step):
             if unmask_num == 0:
                 continue
-            outputs = model(
-                input_ids=output_ids.unsqueeze(0),
-                attention_mask=attention_mask.unsqueeze(0),
-            )
-            logits = outputs.logits[0]
+            if cfg_scale != 1:
+                uncond_output_ids = output_ids.clone()
+                uncond_output_ids[:prompt_length] = mask_id
+                output_ids_mix = torch.stack([output_ids, uncond_output_ids], dim=0)
+                attention_mask_mix = torch.stack(
+                    [attention_mask, attention_mask], dim=0
+                )
+                outputs = model(
+                    input_ids=output_ids_mix,
+                    attention_mask=attention_mask_mix,
+                )
+                logits = outputs.logits
+                logits_cond = logits[0]
+                logits_uncond = logits[1]
+                logits = logits_uncond + cfg_scale * (logits_cond - logits_uncond)
+            else:
+                outputs = model(
+                    input_ids=output_ids.unsqueeze(0),
+                    attention_mask=attention_mask.unsqueeze(0),
+                )
+                logits = outputs.logits[0]
             pred_obj = torch.max(logits, dim=-1)
             pred_conf = pred_obj.values
             pred_ids = pred_obj.indices
@@ -170,7 +188,7 @@ def test(args):
             attention_mask = torch.tensor(
                 example["attention_mask"], device=model.device
             )
-            output_ids = predict(input_ids, attention_mask, num_steps=num_unmask_steps)
+            output_ids = predict(input_ids, attention_mask, num_steps=num_unmask_steps, prompt_length=example["prompt_length"])
 
             pred = tokenizer.decode(output_ids[example["prompt_length"] :])
             actual = tokenizer.decode(example["input_ids"][example["prompt_length"] :])
