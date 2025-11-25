@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 import torch
 from torch.nn import functional as F
 import argparse
-from prompt import PROMPT
+from prompt import PROMPT_INSTRUCT
 import wandb
 
 
@@ -51,7 +51,7 @@ def train(args):
     )
 
     model = AutoModel.from_pretrained(
-        "GSAI-ML/LLaDA-8B-Base",
+        "GSAI-ML/LLaDA-8B-Instruct",
         # quantization_config=BitsAndBytesConfig(
         #     load_in_4bit=True,
         #     bnb_4bit_compute_dtype=torch.bfloat16,
@@ -61,7 +61,7 @@ def train(args):
         trust_remote_code=True,
     )
     tokenizer = AutoTokenizer.from_pretrained(
-        "GSAI-ML/LLaDA-8B-Base", trust_remote_code=True
+        "GSAI-ML/LLaDA-8B-Instruct", trust_remote_code=True
     )
     tokenizer.pad_token = tokenizer.eos_token
 
@@ -76,7 +76,7 @@ def train(args):
         neutral_text = example["en_neutral_comment"]
 
         input_ids = tokenizer(
-            PROMPT.format(hate_text=hate_text, neutral_text=neutral_text)
+            PROMPT_INSTRUCT.format(hate_text=hate_text, neutral_text=neutral_text)
             + "<|endoftext|>",
             return_tensors="pt",
             truncation=True,
@@ -193,7 +193,7 @@ def train(args):
 
     training_args = TrainingArguments(
         output_dir=os.path.join(
-            "models",
+            "models_instruct",
             f"llada_{epochs}ep-{batch_size}bs-{lr}lr-{p_uncond}puncond",
         ),
         overwrite_output_dir=True,

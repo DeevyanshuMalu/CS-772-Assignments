@@ -33,6 +33,7 @@ def parse_args():
         default=64,
         help="Number of unmask steps to perform during prediction",
     )
+    parser.add_argument("--p_uncond", type=float, default=0.1, help="Probability of unconditional training")
     parser.add_argument("--cfg_scale", type=float, default=1.0, help="Guidance scale")
     parser.add_argument(
         "--checkpoint_num",
@@ -52,12 +53,12 @@ def test(args):
 
     model = AutoModel.from_pretrained(
         "GSAI-ML/LLaDA-8B-Base",
-        quantization_config=BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_compute_dtype=torch.bfloat16,
-            bnb_4bit_use_double_quant=True,
-            bnb_4bit_quant_type="nf4",
-        ),
+        # quantization_config=BitsAndBytesConfig(
+        #     load_in_4bit=True,
+        #     bnb_4bit_compute_dtype=torch.bfloat16,
+        #     bnb_4bit_use_double_quant=True,
+        #     bnb_4bit_quant_type="nf4",
+        # ),
         trust_remote_code=True,
     )
     tokenizer = AutoTokenizer.from_pretrained(
@@ -69,7 +70,7 @@ def test(args):
             model,
             os.path.join(
                 "models",
-                f"llada_{epochs}ep-{batch_size}bs-{lr}lr",
+                f"llada_{epochs}ep-{batch_size}bs-{lr}lr-{args.p_uncond}puncond",
                 f"checkpoint-{args.checkpoint_num}",
             ),
         )
@@ -167,8 +168,8 @@ def test(args):
     if args.checkpoint_num != 0:
         out_file = os.path.join(
             "results",
-            f"llada_{epochs}ep-{batch_size}bs-{lr}lr",
-            f"result_{num_unmask_steps}un_{args.checkpoint_num}ch.jsonl",
+            f"llada_{epochs}ep-{batch_size}bs-{lr}lr-{args.p_uncond}puncond",
+            f"result_{num_unmask_steps}un_{args.checkpoint_num}ch_{cfg_scale}cfgscale.jsonl",
         )
     else:
         out_file = os.path.join(

@@ -212,5 +212,6 @@ glove.2024.wikigiga.300d.txt
 wandb/
 *.jsonl
 models/
+models_instruct/
 logs/
 paradetox_dataset/
