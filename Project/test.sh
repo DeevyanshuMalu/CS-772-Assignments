@@ -15,6 +15,7 @@ cfg_scales=(1.0 1.4 1.8)
 num_cands=(4)
 # checkpoints=(0 2321 4642 6963)
 checkpoints=(4642 6963)
+# checkpoints=(0 2321)
 num_unmask_steps=(128)
 
 # python test.py --checkpoint_num 4642 --num_unmask_steps 128 --batch_size 8 --lr 2e-4 --epochs 3 --p_uncond 0.0
