@@ -28,13 +28,13 @@ with col1:
     cfg_scale = st.slider("CFG Scale", 1.0, 1.8, 1.0, 0.4)
 p_uncond = 0.0
 with col2:
-    checkpoint_num = st.slider("Checkpoint Number", 2321, 6963, 4642, 2321)
+    checkpoint_num = st.slider("Checkpoint Number", 2321, 6963, 2321, 2321)
 with col3:
-    do_svdd = st.toggle("SVDD")
+    do_svdd = st.toggle("SVDD", value=True)
 svdd_numcands = 4
 
 model_name = os.path.join(
-                "models_instruct",
+                "models_instruct copy",
                 f"llada_{epochs}ep-{batch_size}bs-{lr}lr-{p_uncond}puncond",
                 f"checkpoint-{checkpoint_num}",
             )
@@ -134,7 +134,7 @@ if input_text:
 
     output_text = tokenizer.decode(output[0][input_ids.shape[1]:], skip_special_tokens=True).strip()
     print("Raw output text:", output_text)
-    output_text = output_text.split('\n')[-1]
+    output_text = output_text.split('\n')[0]
     print("Hate speech:", input_text)
     
     st.text_input("Neutral Text", value=output_text)
@@ -189,6 +189,9 @@ if input_text:
             cola_stats = cola_fluency(preds)
             FL_OUT = float(sum(cola_stats) / len(preds))
 
+            # Fluency similarity
+            FL_acc = sum(np.array(cola_fluency(preds)) == np.array(cola_fluency(hates)))/len(preds)
+
         st.subheader("Evaluation metrics (input -> output)")
         # build a small table and display
         metrics = {
@@ -197,7 +200,7 @@ if input_text:
             "SIM": SIM,
             "FL_IN": FL_IN,
             "FL_OUT": FL_OUT,
-            # "FL_acc": FL_acc,
+            "FL_acc": FL_acc,
             # "J": J,
             # "J_with_FL_acc": J_with_FL_acc
         }

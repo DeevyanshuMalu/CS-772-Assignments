@@ -11,11 +11,12 @@ unset HF_HUB_CACHE
 
 curl --location-trusted -u 22b1256:459c74cf8ab1f998b33f94dcd0deada3 "https://internet-sso.iitb.ac.in/login.php"
 
-cfg_scales=(1.0 1.4 1.8)
+# cfg_scales=(1.0 1.4 1.8)
+cfg_scales=(1.0)
 num_cands=(4)
 # checkpoints=(0 2321 4642 6963)
-checkpoints=(4642 6963)
-# checkpoints=(0 2321)
+checkpoints=(6963)
+# checkpoints=(2321)
 num_unmask_steps=(128)
 
 # python test.py --checkpoint_num 4642 --num_unmask_steps 128 --batch_size 8 --lr 2e-4 --epochs 3 --p_uncond 0.0
